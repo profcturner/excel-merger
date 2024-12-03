@@ -44,7 +44,7 @@ def override_arguments(args):
         if len(override):
             args.map_file = override
 
-    return(args)
+    return args
 
 
 def parse_arguments():
@@ -83,12 +83,11 @@ def parse_arguments():
                         default='mapping.cfg',
                         help='the name of the file containing the mapping')
 
-
     args = parser.parse_args()
 
     # Allow for any overrides from program logic or interaction with the user
     args = override_arguments(args)
-    return(args)
+    return args
 
 
 def check_for_newrow(config_line):
@@ -149,9 +148,9 @@ def select_sheet_from_workbook(workbook, sheet_name):
         # Try and grab that sheet (remembering that the list is indexed from 0, not 1
         sheet_names = workbook.sheetnames
         try:
-            return workbook[sheet_names[sheet_number-1]]
+            return workbook[sheet_names[sheet_number - 1]]
         except IndexError:
-            print(f"Error, that sheet ({sheet_number-1}) does not exist in this spreadsheet.")
+            print(f"Error, that sheet ({sheet_number - 1}) does not exist in this spreadsheet.")
             print("Abnormal Exit.")
             sys.exit()
 
@@ -216,7 +215,8 @@ def process_config_line_copy(config_line, source_workbook, dest_workbook, last_d
     # If a source sheet is specified, grab it, otherwise use the active sheet
     source_sheet = select_sheet_from_workbook(source_workbook, source_sheet_name)
 
-    print(f"    Copy: {source_column}{source_row} to {dest_column}{dest_row} data: {source_sheet[source_column + source_row].value}")
+    print(f"    Copy: {source_column}{source_row} to {dest_column}{dest_row} ", end="")
+    print(f"data: {source_sheet[source_column + source_row].value}")
 
     # To the final copy
     dest_sheet[dest_column + dest_row] = source_sheet[source_column + source_row].value
@@ -232,7 +232,7 @@ def stop_processing_block(config_line, source_workbook):
     :return:                    True if we should stop processing, False otherwise
     """
 
-    # The reg exp for a conditional block command
+    # The regexp for a conditional block command
     re_start_block = r"BlockIf:(~*)(Sheet[0-9]+-)*([A-Z]+)([0-9]+)"
 
     # Check for a match
@@ -269,7 +269,7 @@ def stop_processing_block(config_line, source_workbook):
             return False
     else:
         # We need data to be non zero
-        if data !=0:
+        if data != 0:
             return True
         else:
             return False
@@ -303,7 +303,7 @@ def process_config_line(config_line, source_workbook, dest_workbook, last_dest_r
 
 
 def pre_process_config_by_whitespace(config_lines):
-    """Pre process the config lines by striping leading and tailing whitespace and comments"""
+    """Pre-process the config lines by striping leading and tailing whitespace and comments"""
 
     # A list for the cleaned lines
     cleaned_lines = []
@@ -420,7 +420,7 @@ def process_input_directory(args):
     try:
         dest_workbook.save(args.output_file)
     except OSError:
-        print(f"Error saving output file {args.output_file}");
+        print(f"Error saving output file {args.output_file}")
         print("Abnormal Exit.")
         sys.exit(2)
 
