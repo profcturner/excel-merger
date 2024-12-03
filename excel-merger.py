@@ -51,9 +51,8 @@ def parse_arguments():
     """Get all the command line arguments and return the args from an ArgumentParser"""
 
     parser = argparse.ArgumentParser(
-        description="A script to email students study pages for a semi-open book exam",
-        epilog="Note that column count arguments start from zero."
-
+        description="A script to merge multiple Excel spreadsheets with a mapping file.",
+        epilog=""
     )
 
     parser.add_argument('-b', '--batch-mode',
@@ -82,6 +81,13 @@ def parse_arguments():
                         dest='map_file',
                         default='mapping.cfg',
                         help='the name of the file containing the mapping')
+
+    parser.add_argument('-v', '--verbose',
+                        dest='verbose',
+                        default=0,
+                        type=int,
+                        choices=[0, 1, 2],
+                        help='how much detail should be shown (0-2)')
 
     args = parser.parse_args()
 
@@ -158,10 +164,11 @@ def select_sheet_from_workbook(workbook, sheet_name):
     return workbook.active
 
 
-def process_config_line_set(config_line, source_workbook, dest_workbook, last_dest_row, match):
+def process_config_line_set(args, config_line, source_workbook, dest_workbook, last_dest_row, match):
     """
     Handles a Set command - placing specific text in a given spreadsheet cell
 
+    :param args:                The command line arguments
     :param config_line:         The config line itself
     :param source_workbook:     The current source spreadsheet
     :param dest_workbook:       The destination spreadsheet
@@ -181,15 +188,17 @@ def process_config_line_set(config_line, source_workbook, dest_workbook, last_de
     # If a destination sheet is specified, grab it, otherwise use the active sheet
     dest_sheet = select_sheet_from_workbook(dest_workbook, dest_sheet_name)
 
-    print(f"    Set: {dest_column}{dest_row} to be {toset}")
+    if args.verbose > 0:
+        print(f"    Set: {dest_column}{dest_row} to be {toset}")
     dest_sheet[dest_column + dest_row] = toset
 
 
-def process_config_line_copy(config_line, source_workbook, dest_workbook, last_dest_row, match):
+def process_config_line_copy(args, config_line, source_workbook, dest_workbook, last_dest_row, match):
     """
     
     Handles a Copy command - copying data from one spreadsheet cell to another
 
+    :param args:                The command line arguments
     :param config_line:         The config line itself
     :param source_workbook:     The current source spreadsheet
     :param dest_workbook:       The destination spreadsheet
@@ -215,18 +224,20 @@ def process_config_line_copy(config_line, source_workbook, dest_workbook, last_d
     # If a source sheet is specified, grab it, otherwise use the active sheet
     source_sheet = select_sheet_from_workbook(source_workbook, source_sheet_name)
 
-    print(f"    Copy: {source_column}{source_row} to {dest_column}{dest_row} ", end="")
-    print(f"data: {source_sheet[source_column + source_row].value}")
+    if args.verbose > 0:
+        print(f"    Copy: {source_column}{source_row} to {dest_column}{dest_row} ", end="")
+        print(f"data: {source_sheet[source_column + source_row].value}")
 
     # To the final copy
     dest_sheet[dest_column + dest_row] = source_sheet[source_column + source_row].value
 
 
-def stop_processing_block(config_line, source_workbook):
+def stop_processing_block(args, config_line, source_workbook):
     """
 
     Determines if a block is starting, and whether we should discard config lines till it ends
 
+    :param args:                The command line arguments
     :param config_line:         The config line itself
     :param source_workbook:     The current source spreadsheet
     :return:                    True if we should stop processing, False otherwise
@@ -259,7 +270,8 @@ def stop_processing_block(config_line, source_workbook):
     # Check the actual value
     data = source_sheet[source_column + source_row].value
 
-    print(f"    BlockIf: {source_sheet_name}{source_column}{source_row} data: if {data} is {source_not}")
+    if args.verbose > 1:
+        print(f"    BlockIf: {source_sheet_name}{source_column}{source_row} data: if {data} is {source_not}")
 
     if source_not:
         # We need data to be zero or empty
@@ -275,7 +287,7 @@ def stop_processing_block(config_line, source_workbook):
             return False
 
 
-def process_config_line(config_line, source_workbook, dest_workbook, last_dest_row):
+def process_config_line(args, config_line, source_workbook, dest_workbook, last_dest_row):
     """Handles processing of configuration lines, calling other helpers as required
     
     By the time this function is used the config file should have gone through two stages of pre-processing
@@ -283,6 +295,7 @@ def process_config_line(config_line, source_workbook, dest_workbook, last_dest_r
     A global phase that removes comments and white space
     A local phase that has removed blocks rendered inactive by the specific source workbook
 
+    args            the program arguments
     config_line     the cleaned config line
     source_workbook the current source spreadsheet
     dest_workbook   the destingation spreadsheet
@@ -294,12 +307,12 @@ def process_config_line(config_line, source_workbook, dest_workbook, last_dest_r
     # Is it a Set command
     match = re.match(re_set, config_line)
     if match:
-        process_config_line_set(config_line, source_workbook, dest_workbook, last_dest_row, match)
+        process_config_line_set(args, config_line, source_workbook, dest_workbook, last_dest_row, match)
 
     # Is it a Copy command
     match = re.match(re_copy, config_line)
     if match:
-        process_config_line_copy(config_line, source_workbook, dest_workbook, last_dest_row, match)
+        process_config_line_copy(args, config_line, source_workbook, dest_workbook, last_dest_row, match)
 
 
 def pre_process_config_by_whitespace(config_lines):
@@ -325,12 +338,13 @@ def pre_process_config_by_whitespace(config_lines):
     return cleaned_lines
 
 
-def pre_process_config_by_source(config_lines, source_workbook):
+def pre_process_config_by_source(args, config_lines, source_workbook):
     """
 
     This function takes the config file and removes blocks that should not be processed based on
     the source workbook
 
+    :param args: the command line arguments
     :param config_lines: the existing list of config lines (likely with comments removed)
     :param source_workbook: the source workbook to use to check for block removal
     :return: the config_lines that are still active
@@ -346,7 +360,7 @@ def pre_process_config_by_source(config_lines, source_workbook):
     valid = True
 
     for config_line in config_lines:
-        if stop_processing_block(config_line, source_workbook):
+        if stop_processing_block(args, config_line, source_workbook):
             # Don't copy config till later notice
             valid = False
             continue
@@ -359,7 +373,8 @@ def pre_process_config_by_source(config_lines, source_workbook):
         if valid:
             preserved_lines.append(config_line)
 
-    print(f"  Preprocess config: {len(preserved_lines)} lines left from {len(config_lines)}")
+    if args.verbose > 1:
+        print(f"  Preprocess config: {len(preserved_lines)} lines left from {len(config_lines)}")
 
     return preserved_lines
 
@@ -403,7 +418,7 @@ def process_input_directory(args):
                 print(f"Error opening {filename}")
                 sys.exit(3)
             # A second stage pre-process of the mapping config removes any blocks conditionally for this source workbook
-            preserved_lines = pre_process_config_by_source(config_lines, source_workbook)
+            preserved_lines = pre_process_config_by_source(args, config_lines, source_workbook)
 
             # Iterate through the remaining mapping configuration for this file
             for config_line in preserved_lines:
@@ -411,7 +426,7 @@ def process_input_directory(args):
                 if check_for_newrow(config_line):
                     last_dest_row += 1
 
-                process_config_line(config_line, source_workbook, dest_workbook, last_dest_row)
+                process_config_line(args, config_line, source_workbook, dest_workbook, last_dest_row)
 
             # Done with that source file
             source_workbook.close()
@@ -419,6 +434,7 @@ def process_input_directory(args):
     # Save the resulting output spreadsheet
     try:
         dest_workbook.save(args.output_file)
+        print(f"  Saving to {args.output_file}...")
     except OSError:
         print(f"Error saving output file {args.output_file}")
         print("Abnormal Exit.")
@@ -432,7 +448,8 @@ def main():
     args = parse_arguments()
 
     print("Starting excel-merger...")
-    print(args)
+    if args.verbose > 1:
+        print(args)
 
     process_input_directory(args)
 
