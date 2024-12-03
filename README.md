@@ -3,7 +3,7 @@ A very basic tool for merging many source Excel files into a master file, using 
 
 ## Requirements
 
-This script is written for Python 3.6+ and uses OpenPyXL
+This script is written for Python 3.7+ and uses OpenPyXL
 
 ## Usage
 
@@ -23,6 +23,4 @@ There is very basic support for placing mapping instructions in blocks so that t
 
 ## Limitations
 
-This is currently very basic, and has no error checking for errors such as missing files.
-
-Likewise, the mapping language is currently very simple.
+This is currently very basic. Likewise, the mapping language is currently very simple.
