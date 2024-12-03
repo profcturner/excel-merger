@@ -16,6 +16,8 @@ It required OpenPyXL, shout out to that team!
 import argparse
 import os
 import re
+import sys
+
 import openpyxl
 
 
@@ -146,7 +148,12 @@ def select_sheet_from_workbook(workbook, sheet_name):
 
         # Try and grab that sheet (remembering that the list is indexed from 0, not 1
         sheet_names = workbook.sheetnames
-        return workbook[sheet_names[sheet_number-1]]
+        try:
+            return workbook[sheet_names[sheet_number-1]]
+        except IndexError:
+            print(f"Error, that sheet ({sheet_number-1}) does not exist in this spreadsheet.")
+            print("Abnormal Exit.")
+            sys.exit()
 
     # Just return the active sheet if all else fails
     return workbook.active
@@ -362,13 +369,18 @@ def process_input_directory(args):
     Loops through Excel files in the input directory, mapping contents to the output file
     """
 
-    #TODO: There is NO error checking in this for FILE IO errors, so it needs to be made resilient for this
     print("Opening config...")
     # Open the config file read only and grab all the lines in it.
-    config = open(args.map_file, "r")
-    # Read all configuration lines, and remove comments and whitespace
-    config_lines = config.read()
-    config_lines = pre_process_config_by_whitespace(config_lines.splitlines())
+    try:
+        config = open(args.map_file, "r")
+    except OSError:
+        print(f"Error opening config file {args.map_file}")
+        print("Abnormal Exit.")
+        sys.exit(1)
+    with config:
+        # Read all configuration lines, and remove comments and whitespace
+        config_lines = config.read()
+        config_lines = pre_process_config_by_whitespace(config_lines.splitlines())
 
     # Open the workbook for output
     print("Opening destination file...")
@@ -385,7 +397,11 @@ def process_input_directory(args):
         if filename.endswith("xls") or filename.endswith("xlsx"):
             print(f"  Opening {filename}...")
             # Open the source spreadsheet
-            source_workbook = openpyxl.load_workbook(filename=filename, data_only=True, read_only=True)
+            try:
+                source_workbook = openpyxl.load_workbook(filename=filename, data_only=True, read_only=True)
+            except OSError:
+                print(f"Error opening {filename}")
+                sys.exit(3)
             # A second stage pre-process of the mapping config removes any blocks conditionally for this source workbook
             preserved_lines = pre_process_config_by_source(config_lines, source_workbook)
 
@@ -401,13 +417,18 @@ def process_input_directory(args):
             source_workbook.close()
 
     # Save the resulting output spreadsheet
-    dest_workbook.save(args.output_file)
+    try:
+        dest_workbook.save(args.output_file)
+    except OSError:
+        print(f"Error saving output file {args.output_file}");
+        print("Abnormal Exit.")
+        sys.exit(2)
 
 
 def main():
     """the main function that kicks everything else off"""
 
-    print("excel-merger v1.0")
+    print("excel-merger v1.1")
     args = parse_arguments()
 
     print("Starting excel-merger...")
@@ -416,6 +437,7 @@ def main():
     process_input_directory(args)
 
     print('Stopping excel-merger...')
+    print("Successful exit.")
 
 
 if __name__ == '__main__':
